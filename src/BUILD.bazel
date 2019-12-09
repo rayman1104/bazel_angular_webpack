@@ -56,7 +56,10 @@ ng_module(
 rollup_bundle(
     name = "bundle",
     config_file = "rollup.config.js",
-    entry_point = ":main.prod.ts",
+    entry_points = {
+        ":main.prod.ts": "index",
+    },
+    output_dir = True,
     deps = [
         "//src",
         "@npm//rollup-plugin-commonjs",
