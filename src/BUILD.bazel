@@ -1,8 +1,9 @@
 package(default_visibility = ["//visibility:public"])
 
+load("@npm//html-insert-assets:index.bzl", "html_insert_assets")
 load("@npm_angular_bazel//:index.bzl", "ng_module")
 load("@npm_bazel_karma//:index.bzl", "karma_web_test_suite")
-load("@build_bazel_rules_nodejs//internal/web_package:web_package.bzl", "web_package")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_web")
 load("@npm//history-server:index.bzl", "history_server")
 load("@npm_bazel_rollup//:index.bzl", "rollup_bundle")
 load("@npm_bazel_terser//:index.bzl", "terser_minified")
@@ -10,16 +11,20 @@ load("@npm_bazel_typescript//:index.bzl", "ts_devserver", "ts_library")
 load("@io_bazel_rules_sass//:defs.bzl", "multi_sass_binary", "sass_binary")
 
 sass_binary(
-  name = "global_stylesheet",
-  src = glob(["styles.css", "styles.scss"])[0],
-  output_name = "global_stylesheet.css",
+    name = "global_stylesheet",
+    src = glob([
+        "styles.css",
+        "styles.scss",
+    ])[0],
+    output_name = "global_stylesheet.css",
+    sourcemap = False,
 )
 
 multi_sass_binary(
     name = "styles",
     srcs = glob(
-      include = ["**/*.scss"],
-      exclude = ["styles.scss"],
+        include = ["**/*.scss"],
+        exclude = ["styles.scss"],
     ),
 )
 
@@ -35,8 +40,8 @@ ng_module(
         ],
     ),
     assets = glob([
-      "**/*.css",
-      "**/*.html",
+        "**/*.css",
+        "**/*.html",
     ]) + ([":styles"] if len(glob(["**/*.scss"])) else []),
     generate_ve_shims = True,
     deps = [
@@ -64,18 +69,37 @@ terser_minified(
     src = ":bundle",
 )
 
-web_package(
+# Files that we serve in both development and production
+_ASSETS = [
+    # This label references an output of the "styles" sass_binary above.
+    ":global_stylesheet",
+    "@npm//:node_modules/zone.js/dist/zone.min.js",
+]
+
+html_insert_assets(
+    name = "inject_scripts_for_prod",
+    # we can't output "src/example/index.html" since that collides with the devmode file.
+    # pkg_web rule will re-root paths that start with _{name} by default
+    # so we output "_prodapp/src/example/index.html" so that it is mapped to
+    # `example/index.html` in the web package.
+    outs = ["index.html"],
+    args = [
+        "--html=$(location :index.prod.html)",
+        "--out=$@",
+        "--roots=. $(RULEDIR)",
+        "--assets",
+    ] + ["$(location %s)" % s for s in _ASSETS],
+    data = [":index.prod.html"] + _ASSETS,
+)
+
+pkg_web(
     name = "prodapp",
-    assets = [
-        # do not sort
-        "@npm//:node_modules/zone.js/dist/zone.min.js",
-        ":bundle.min",
-        ":global_stylesheet",
-    ],
-    data = [
+    srcs = _ASSETS + [
         "favicon.ico",
+        "index.html",
+        ":inject_scripts_for_prod",
+        ":bundle",
     ],
-    index_html = "index.html",
 )
 
 history_server(
@@ -95,21 +119,19 @@ filegroup(
 
 ts_devserver(
     name = "devserver",
-    port = 4200,
     entry_module = "project/src/main.dev",
-    serving_path = "/bundle.min.js",
+    port = 4200,
     scripts = [
         "@npm//:node_modules/tslib/tslib.js",
         ":rxjs_umd_modules",
     ],
+    serving_path = "/bundle.min.js",
     static_files = [
+        "index.html",
         "@npm//:node_modules/zone.js/dist/zone.min.js",
         ":global_stylesheet",
-    ],
-    data = [
         "favicon.ico",
     ],
-    index_html = "index.html",
     deps = [":src"],
 )
 
@@ -143,9 +165,6 @@ karma_web_test_suite(
     srcs = [
         "@npm//:node_modules/tslib/tslib.js",
     ],
-    runtime_deps = [
-        ":initialize_testbed",
-    ],
     # do not sort
     bootstrap = [
         "@npm//:node_modules/zone.js/dist/zone-testing-bundle.js",
@@ -155,9 +174,12 @@ karma_web_test_suite(
         "@io_bazel_rules_webtesting//browsers:chromium-local",
     ],
     tags = ["native"],
+    runtime_deps = [
+        ":initialize_testbed",
+    ],
     deps = [
         ":rxjs_umd_modules",
         ":test_lib",
-        "@npm//karma-jasmine",
+        # "@npm//karma-jasmine",
     ],
 )
