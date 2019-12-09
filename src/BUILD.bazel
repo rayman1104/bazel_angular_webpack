@@ -45,6 +45,7 @@ ng_module(
     ]) + ([":styles"] if len(glob(["**/*.scss"])) else []),
     generate_ve_shims = True,
     deps = [
+        "//src/app/home",
         "@npm//@angular/core",
         "@npm//@angular/platform-browser",
         "@npm//@angular/router",
@@ -59,6 +60,7 @@ rollup_bundle(
     entry_points = {
         ":main.prod.ts": "index",
     },
+    # format = "iife",
     output_dir = True,
     deps = [
         "//src",
