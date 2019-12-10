@@ -9,6 +9,7 @@ load("@npm_bazel_rollup//:index.bzl", "rollup_bundle")
 load("@npm_bazel_terser//:index.bzl", "terser_minified")
 load("@npm_bazel_typescript//:index.bzl", "ts_devserver", "ts_library")
 load("@io_bazel_rules_sass//:defs.bzl", "multi_sass_binary", "sass_binary")
+load("//rules:index.bzl", "webpack_bundle")
 
 sass_binary(
     name = "global_stylesheet",
@@ -54,20 +55,31 @@ ng_module(
     ],
 )
 
-rollup_bundle(
+webpack_bundle(
     name = "bundle",
-    config_file = "rollup.config.js",
-    entry_points = {
-        ":main.prod.ts": "index",
-    },
-    # format = "iife",
-    output_dir = True,
+    config_file = "webpack.config.js",
+    entry_point = ":main.prod.ts",
     deps = [
         "//src",
-        "@npm//rollup-plugin-commonjs",
-        "@npm//rollup-plugin-node-resolve",
+        "@npm//webpack",
+        "@npm//webpack-cli",
     ],
 )
+
+#rollup_bundle(
+#    name = "bundle",
+#    config_file = "rollup.config.js",
+#    entry_points = {
+#        ":main.prod.ts": "index",
+#    },
+#    # format = "iife",
+#    output_dir = True,
+#    deps = [
+#        "//src",
+#        "@npm//rollup-plugin-commonjs",
+#        "@npm//rollup-plugin-node-resolve",
+#    ],
+#)
 
 terser_minified(
     name = "bundle.min",
