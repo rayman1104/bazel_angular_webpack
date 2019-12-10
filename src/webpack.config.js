@@ -20,7 +20,7 @@ module.exports = {
 
   resolve: {
     extensions: ['.ts', '.js', '.mjs', '.scss'],
-    mainFields: ['browser', 'es2015', 'module', 'jsnext:main', 'main'],
+    mainFields: ['es2015', 'browser', 'module', 'jsnext:main', 'main'],
     symlinks: false,
   },
 
@@ -55,6 +55,8 @@ module.exports = {
       }
     ]
   },
+
+  devtool: 'cheap-source-map',
 
   plugins: [],
 };
