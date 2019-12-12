@@ -50,6 +50,7 @@ ng_module(
         "@npm//@angular/platform-browser",
         "@npm//@angular/router",
         "@npm//@types",
+        "@npm//protobufjs",
         "@npm//rxjs",
     ],
 )
@@ -74,11 +75,27 @@ terser_minified(
     src = ":bundle",
 )
 
+# Needed because the prodserver only loads static files that appear under this
+# package.
+genrule(
+    name = "protobufjs",
+    srcs = [
+        "@npm//:node_modules/protobufjs/dist/minimal/protobuf.min.js",
+        "@npm//:node_modules/long/dist/long.js",
+    ],
+    outs = [
+        "protobuf.min.js",
+        "long.js",
+    ],
+    cmd = "outs=($(OUTS)); d=$$(dirname $${outs[0]}); for s in $(SRCS); do cp $$s $$d; done",
+)
+
 # Files that we serve in both development and production
 _ASSETS = [
-    # This label references an output of the "styles" sass_binary above.
     ":global_stylesheet",
     "@npm//:node_modules/zone.js/dist/zone.min.js",
+    "protobuf.min.js",
+    "long.js",
 ]
 
 html_insert_assets(

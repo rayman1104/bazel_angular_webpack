@@ -8,4 +8,9 @@ module.exports = {
     }),
     commonjs(),
   ],
+  external: [
+    'long',
+    'protobufjs/minimal',
+  ],
+  output: {globals: {long: 'Long', 'protobufjs/minimal': 'protobuf'}}
 };
