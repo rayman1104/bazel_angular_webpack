@@ -10,6 +10,8 @@ function root(args) {
   return path.join.apply(path, [_root].concat(args));
 }
 
+const mainFields = ['es2015', 'browser', 'module', 'jsnext:main', 'main'];
+
 module.exports = {
   mode: 'development',
 
@@ -20,7 +22,7 @@ module.exports = {
 
   resolve: {
     extensions: ['.ts', '.js', '.mjs', '.scss'],
-    mainFields: ['es2015', 'browser', 'module', 'jsnext:main', 'main'],
+    mainFields,
     symlinks: false,
   },
 
@@ -52,6 +54,7 @@ module.exports = {
         test: /\.mjs$/,
         // include: /node_modules/,
         type: "javascript/auto",
+        resolve: { mainFields },
       }
     ]
   },
