@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -61,5 +62,7 @@ module.exports = {
 
   devtool: 'cheap-source-map',
 
-  plugins: [],
+  plugins: [
+    new (require('webpack').optimize.LimitChunkCountPlugin)({ maxChunks: 1 }),
+  ],
 };

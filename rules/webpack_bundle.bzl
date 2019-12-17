@@ -1,6 +1,26 @@
 load("@build_bazel_rules_nodejs//:providers.bzl", "JSEcmaScriptModuleInfo", "NpmPackageInfo", "node_modules_aspect", "run_node")
 load("@build_bazel_rules_nodejs//internal/linker:link_node_modules.bzl", "module_mappings_aspect")
 
+_SOURCEMAP_INLINE_VALUES = [
+    "eval",
+    "eval-cheap-source-map",
+    "eval-cheap-module-source-map",
+    "eval-source-map",
+    "inline-cheap-source-map",
+    "inline-cheap-module-source-map",
+    "inline-source-map",
+    "false",
+]
+
+_SOURCEMAP_VALUES = [
+    "cheap-source-map",
+    "cheap-module-source-map",
+    "source-map",
+    "hidden-source-map",
+    "nosources-source-map",
+    "true",
+]
+
 WEBPACK_BUNDLE_ATTRS = {
     "srcs": attr.label_list(allow_files = True),
     "config_file": attr.label(
@@ -15,13 +35,17 @@ WEBPACK_BUNDLE_ATTRS = {
     ),
     "output_dir": attr.bool(),
     "webpack_bin": attr.label(
-        default = "@npm//webpack/bin:webpack",
+        default = "@npm//webpack-cli/bin:webpack-cli",
         executable = True,
         cfg = "host",
     ),
     "sourcemap": attr.string(
-        default = "inline",
-        values = ["inline", "hidden", "true", "false"],
+        doc = """This option controls if and how source maps are generated.
+
+Passed to the [`--devtool` option](https://webpack.js.org/configuration/devtool/") in Webpack
+""",
+        default = "inline-cheap-source-map",
+        values = _SOURCEMAP_INLINE_VALUES + _SOURCEMAP_VALUES,
     ),
     "deps": attr.label_list(
         aspects = [module_mappings_aspect, node_modules_aspect],
@@ -33,12 +57,7 @@ def _webpack_outs(sourcemap, name, entry_point, entry_points, output_dir):
     result = {}
     entry_point_outs = _desugar_entry_point_names(name, entry_point, entry_points)
     if output_dir:
-        # We can't declare a directory output here, because RBE will be confused, like
-        # com.google.devtools.build.lib.remote.ExecutionStatusException:
-        # INTERNAL: failed to upload outputs: failed to construct CAS files:
-        # failed to calculate file hash:
-        # read /b/f/w/bazel-out/k8-fastbuild/bin/packages/rollup/test/multiple_entry_points/chunks: is a directory
-        #result["chunks"] = output_dir
+        # We can't declare a directory output here, because RBE will be confused
         return {}
     else:
         if len(entry_point_outs) > 1:
@@ -46,7 +65,7 @@ def _webpack_outs(sourcemap, name, entry_point, entry_points, output_dir):
         out = entry_point_outs[0]
         result[out] = out + ".js"
 
-        if sourcemap == "true":
+        if sourcemap in _SOURCEMAP_VALUES:
             result[out + "_map"] = "%s.map" % result[out]
     return result
 
@@ -135,9 +154,11 @@ def _webpack_bundle(ctx):
     if ctx.attr.output_dir:
         outputs.append(ctx.actions.declare_directory(ctx.label.name))
         for entry_point in entry_points:
-            args.add_joined([entry_point[1], entry_point[0]], join_with = "=")
+            args.add_joined([entry_point[1], "./" + entry_point[0].path], join_with = "=")
 
         args.add_all(["--output-path", outputs[0].path])
+        args.add_all(["--output-chunk-filename", "[id].chunk.js"])
+
     else:
         args.add(entry_points[0][0])
         args.add_all(["-o", outputs[0].path])
@@ -156,6 +177,11 @@ def _webpack_bundle(ctx):
 
     if ctx.version_file:
         inputs.append(ctx.version_file)
+
+    if ctx.attr.sourcemap == "true":
+        args.add_all(["--devtool", "source-map"])
+    elif ctx.attr.sourcemap and ctx.attr.sourcemap != "false":
+        args.add_all(["--devtool", ctx.attr.sourcemap])
 
     run_node(
         ctx,
